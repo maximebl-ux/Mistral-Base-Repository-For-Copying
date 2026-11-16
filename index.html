@@ -24,6 +24,10 @@
   button:disabled { opacity:0.45; cursor:not-allowed; }
   #waveBtn { background:#3a6a3a; border-color:#5a9a5a; font-size:15px; }
   #waveBtn:hover:not(:disabled) { background:#4a8a4a; }
+  #pauseBtn { position:absolute; top:10px; right:10px; background:#3a4c68; border-color:#5a7ab0; min-width:110px; }
+  #settingsPanel { position:absolute; top:56px; right:10px; background:rgba(10,14,20,0.95); border:1px solid #2a3545; border-radius:8px; padding:12px; display:none; flex-direction:column; gap:8px; width:220px; }
+  #settingsPanel button { width:100%; }
+  #settingsPanel h4 { font-size:13px; color:#9fb2c8; margin:0; }
   #autoLbl { font-size:13px; color:#9fb2c8; display:flex; align-items:center; gap:4px; background:rgba(10,14,20,0.85); padding:6px 10px; border-radius:6px; border:1px solid #2a3545; }
   #bossWrap { position:absolute; top:14px; left:50%; transform:translateX(-50%); margin-top:52px; width:420px; display:none; text-align:center; }
   #bossName { color:#ff7a7a; font-weight:bold; text-shadow:0 0 8px #000; margin-bottom:3px; }
@@ -74,9 +78,15 @@
   </div>
   <div id="waveCtrl">
     <button id="waveBtn">START WAVE 1</button>
-    <button id="speedBtn">1x</button>
+  </div>
+  <button id="pauseBtn">⏸ PAUSE</button>
+  <div id="settingsPanel">
+    <h4>SETTINGS</h4>
+    <button id="resumeBtn">▶ RESUME</button>
+    <button id="speedBtn">Speed: 1x</button>
     <button id="muteBtn">Sound: ON</button>
-    <label id="autoLbl"><input type="checkbox" id="autoChk"> Auto</label>
+    <label id="autoLbl"><input type="checkbox" id="autoChk"> Auto-skip waves</label>
+    <button id="newBtn">NEW GAME (reset save)</button>
   </div>
   <div id="bossWrap"><div id="bossName"></div><div id="bossHpWrap"><div id="bossHp"></div></div></div>
   <div id="panel">
@@ -93,7 +103,7 @@
 <div class="overlay" id="startOverlay">
   <h1>ZOMBIE OUTBREAK: TDS</h1>
   <p>Endless zombie siege. You start with <b style="color:#7fe0a0">$600</b> and a base with <b style="color:#e0a04a">200 HP</b>. Earn cash for every kill, build on the marked pads, and survive as long as you can.</p>
-  <p>Left-click a pad to build &middot; click a tower to upgrade/sell &middot; right-drag to pan &middot; wheel to zoom &middot; Q/E to rotate &middot; keys 1-0 pick towers.</p>
+  <p>Left-click a pad to build &middot; click a tower to upgrade/sell &middot; right-drag to pan &middot; wheel to zoom &middot; Q/E to rotate &middot; keys 1-0 pick towers &middot; P pauses &middot; progress saves automatically.</p>
   <div class="legend">
     <span><b>Guardians</b> stun your towers</span>
     <span><b>Medics</b> heal the horde</span>
@@ -101,6 +111,7 @@
     <span><b>Rot Titan</b> = boss (wave 10+)</span>
   </div>
   <button class="big" id="playBtn">PLAY</button>
+  <button class="big" id="newBtn" style="display:none">NEW GAME</button>
 </div>
 <div class="overlay" id="overOverlay" style="display:none">
   <h2>THE BASE HAS FALLEN</h2>
@@ -114,10 +125,6 @@ const PATH_WPS = [
   [-36,-16], [-8,-16], [-8,8], [16,8], [16,-12], [34,-12], [34,16], [-2,16]
 ];
 const BASE_POS = new THREE.Vector3(-2, 0, 21);
-const PAD_POS = [
-  [-28,-10],[-16,-10],[-14,0],[-2,-6],[-2,3],[2,2],[10,2],[2,14],[10,14],
-  [22,2],[22,-6],[28,-6],[28,4],[28,12],[24,22],[12,22],[6,-4],[-20,6]
-];
 
 const ENEMY_TYPES = {
   walker:     { name:'Walker',        hp:42,   speed:2.2,  reward:8,   dmg:4,  color:0x6a9c48, scale:1.0 },
@@ -148,7 +155,8 @@ const UPGRADE_COSTS = [0.8, 1.4, 2.2];
 const state = {
   cash: 600, baseHp: 200, baseMax: 200,
   wave: 0, waveActive: false, speed: 1, muted: false,
-  started: false, over: false, autoTimer: 0
+  started: false, over: false, paused: false,
+  autoTimer: 0, waveTime: 0, skipReady: false, skipping: false, saveTimer: 2
 };
 const enemies = [], towers = [], projectiles = [], effects = [], pads = [], beams = [];
 let spawnQueue = [], spawnTimer = 0;
@@ -475,6 +483,13 @@ function makeTowerMesh(key) {
     coin.rotation.x = Math.PI/2; coin.position.set(0, 0.5, 0.6);
     head.add(vault, coin);
     head.rotation.y = 0;
+  } else if (key === 'bank') {
+    const vault = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.0, 1.1), mat);
+    vault.position.y = 0.5; vault.castShadow = true;
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.08, 12), new THREE.MeshStandardMaterial({ color: 0xf0c84a, metalness: 0.7, roughness: 0.3 }));
+    coin.rotation.x = Math.PI/2; coin.position.set(0, 0.5, 0.6);
+    head.add(vault, coin);
+    head.rotation.y = 0;
   } else if (key === 'railgun') {
     head.add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.9), mat));
     for (const dx of [-0.22, 0.22]) {
@@ -666,6 +681,7 @@ function startWave() {
   if (state.waveActive || state.over) return;
   state.wave++;
   state.waveActive = true;
+  state.waveTime = 0; state.skipReady = false; state.skipping = false;
   spawnQueue = buildWave(state.wave);
   spawnTimer = 0.5;
   const hasBoss = spawnQueue.includes('titan');
@@ -684,23 +700,42 @@ function endWave() {
   showBanner(`WAVE ${state.wave} CLEARED`, `+$${bonus} bonus${income ? ` + $${income} bank income` : ''}`);
   sfx.cash();
   updateWaveBtn();
-  if (document.getElementById('autoChk').checked) state.autoTimer = 2.5;
+  state.autoTimer = 1.5;
+  saveGame();
 }
 
 function updateWaves(dt) {
-  if (state.waveActive && spawnQueue.length) {
-    spawnTimer -= dt;
-    if (spawnTimer <= 0) {
-      const key = spawnQueue.shift();
-      enemies.push(new Enemy(key, hpMul(state.wave), 1 + Math.min(0.5, state.wave * 0.012), 1 + (state.wave - 1) * 0.03));
-      spawnTimer = Math.max(0.3, 1.05 - state.wave * 0.018);
+  if (state.waveActive) {
+    state.waveTime += dt;
+    if (!state.skipReady && state.waveTime >= 4 / state.speed) { state.skipReady = true; updateWaveBtn(); }
+    if (state.skipping && spawnQueue.length) {
+      spawnTimer -= dt;
+      if (spawnTimer <= 0) {
+        const key = spawnQueue.shift();
+        enemies.push(new Enemy(key, hpMul(state.wave), 1 + Math.min(0.5, state.wave * 0.012), 1 + (state.wave - 1) * 0.03));
+        spawnTimer = 0.08;
+      }
+    } else if (spawnQueue.length) {
+      spawnTimer -= dt;
+      if (spawnTimer <= 0) {
+        const key = spawnQueue.shift();
+        enemies.push(new Enemy(key, hpMul(state.wave), 1 + Math.min(0.5, state.wave * 0.012), 1 + (state.wave - 1) * 0.03));
+        spawnTimer = Math.max(0.3, 1.05 - state.wave * 0.018);
+      }
     }
-  }
-  if (state.waveActive && !spawnQueue.length && enemies.length === 0) endWave();
-  if (!state.waveActive && state.autoTimer > 0) {
+    if (document.getElementById('autoChk').checked && state.skipReady) skipWave();
+    if (!spawnQueue.length && enemies.length === 0) endWave();
+  } else if (state.autoTimer > 0) {
     state.autoTimer -= dt;
     if (state.autoTimer <= 0) startWave();
   }
+}
+
+function skipWave() {
+  if (!state.waveActive || !state.skipReady || state.skipping) return;
+  state.skipping = true;
+  spawnTimer = 0;
+  showBanner(`WAVE ${state.wave} SKIPPED`, 'The horde rushes in!');
 }
 
 function addCash(v) { state.cash += Math.round(v); }
@@ -708,6 +743,7 @@ function addCash(v) { state.cash += Math.round(v); }
 function gameOver() {
   state.over = true;
   state.baseHp = 0;
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
   document.getElementById('overStats').innerHTML = `You survived <b style="color:#ffd27a">${state.wave}</b> wave${state.wave === 1 ? '' : 's'}.`;
   document.getElementById('overOverlay').style.display = 'flex';
 }
@@ -722,8 +758,15 @@ function showBanner(main, sub) {
 
 function updateWaveBtn() {
   const btn = document.getElementById('waveBtn');
-  btn.disabled = state.waveActive || state.over;
-  btn.textContent = state.waveActive ? `WAVE ${state.wave} IN PROGRESS` : `START WAVE ${state.wave + 1}`;
+  if (state.over) { btn.disabled = true; btn.textContent = `WAVE ${state.wave}`; return; }
+  if (state.waveActive) {
+    if (state.skipping) { btn.disabled = true; btn.textContent = `WAVE ${state.wave} \u2014 RUSHING`; }
+    else if (state.skipReady) { btn.disabled = false; btn.textContent = `SKIP WAVE ${state.wave}`; }
+    else { btn.disabled = true; btn.textContent = `WAVE ${state.wave} IN PROGRESS`; }
+  } else {
+    btn.disabled = false;
+    btn.textContent = `START WAVE ${state.wave + 1}`;
+  }
 }
 
 function buildShop() {
@@ -787,6 +830,51 @@ function refreshPanel() {
   document.getElementById('sellBtn').textContent = `Sell $${Math.round(t.invested * 0.7)}`;
 }
 
+const SAVE_KEY = 'ztds_save_v1';
+
+function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      cash: state.cash, baseHp: state.baseHp, wave: state.wave,
+      speed: state.speed, muted: state.muted,
+      auto: document.getElementById('autoChk').checked,
+      towers: towers.map(t => ({ key: t.key, padIndex: t.padIndex, level: t.level, invested: t.invested }))
+    }));
+  } catch (e) {}
+}
+
+function loadGame() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!d || typeof d.wave !== 'number') return false;
+    state.cash = d.cash || 600;
+    state.baseHp = Math.min(state.baseMax, Math.max(1, d.baseHp || 200));
+    state.wave = Math.max(0, d.wave);
+    state.speed = d.speed || 1;
+    state.muted = !!d.muted;
+    document.getElementById('autoChk').checked = !!d.auto;
+    document.getElementById('muteBtn').textContent = 'Sound: ' + (state.muted ? 'OFF' : 'ON');
+    document.getElementById('speedBtn').textContent = 'Speed: ' + state.speed + 'x';
+    for (const td of d.towers || []) {
+      if (!TOWER_TYPES[td.key] || !pads[td.padIndex] || pads[td.padIndex].tower) continue;
+      const t = new Tower(td.key, td.padIndex);
+      t.level = Math.max(1, Math.min(4, td.level || 1));
+      t.invested = td.invested || t.def.cost;
+      pads[td.padIndex].tower = t;
+      towers.push(t);
+    }
+    return true;
+  } catch (e) { return false; }
+}
+
+function togglePause() {
+  if (!state.started || state.over) return;
+  state.paused = !state.paused;
+  document.getElementById('pauseBtn').textContent = state.paused ? '\u25b6 RESUME' : '\u23f8 PAUSE';
+  document.getElementById('settingsPanel').style.display = state.paused ? 'flex' : 'none';
+  saveGame();
+}
+
 const pointer = { down: false, button: 0, moved: 0, lastX: 0, lastY: 0 };
 
 function clampCam() {
@@ -822,6 +910,7 @@ function onClick(e) {
     const t = new Tower(armedKey, padIdx);
     pads[padIdx].tower = t;
     towers.push(t);
+    saveGame();
     sfx.cash();
     armTower(null);
     return;
@@ -874,10 +963,11 @@ function setupInput() {
       if (idx < TOWER_KEYS.length) armTower(armedKey === TOWER_KEYS[idx] ? null : TOWER_KEYS[idx]);
     }
   });
-  document.getElementById('waveBtn').addEventListener('click', startWave);
+  document.getElementById('waveBtn').addEventListener('click', () => { if (state.waveActive) skipWave(); else startWave(); });
   document.getElementById('speedBtn').addEventListener('click', () => {
-    state.speed = state.speed === 1 ? 2 : 1;
-    document.getElementById('speedBtn').textContent = state.speed + 'x';
+    const SPEEDS = [1, 2, 3, 5, 10];
+    state.speed = SPEEDS[(SPEEDS.indexOf(state.speed) + 1) % SPEEDS.length] || 1;
+    document.getElementById('speedBtn').textContent = 'Speed: ' + state.speed + 'x';
   });
   document.getElementById('muteBtn').addEventListener('click', () => {
     state.muted = !state.muted;
@@ -886,6 +976,7 @@ function setupInput() {
   document.getElementById('playBtn').addEventListener('click', () => {
     document.getElementById('startOverlay').style.display = 'none';
     state.started = true;
+    state.autoTimer = 1.5;
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   });
   window.addEventListener('resize', () => {
@@ -903,6 +994,7 @@ document.getElementById('upBtn').addEventListener('click', () => {
   state.cash -= cost;
   t.invested += cost;
   t.level++;
+  saveGame();
   sfx.cash();
   refreshPanel();
 });
@@ -916,6 +1008,7 @@ document.getElementById('sellBtn').addEventListener('click', () => {
   selectedTower = null;
   document.getElementById('panel').style.display = 'none';
   window._rangeRing.visible = false;
+  saveGame();
   sfx.cash();
 });
 
@@ -1002,7 +1095,17 @@ function initWorld() {
   const padGeo = new THREE.CylinderGeometry(1.7, 1.9, 0.35, 20);
   const padMat = new THREE.MeshStandardMaterial({ color: 0x555f6e, roughness: 0.9 });
   const ringGeo = new THREE.RingGeometry(1.55, 1.85, 24);
-  for (const [x, z] of PAD_POS) {
+  const padsPos = [];
+  for (let gx = -38; gx <= 38; gx += 6) {
+    for (let gz = -26; gz <= 26; gz += 6) {
+      const d = distToPath(gx, gz);
+      if (d < 4.6 || d > 9) continue;
+      if (Math.hypot(BASE_POS.x - gx, BASE_POS.z - gz) < 6) continue;
+      if (padsPos.some(p => Math.hypot(p[0] - gx, p[1] - gz) < 5.4)) continue;
+      padsPos.push([gx, gz]);
+    }
+  }
+  for (const [x, z] of padsPos) {
     const pad = new THREE.Mesh(padGeo, padMat);
     pad.position.set(x, 0.18, z);
     pad.castShadow = pad.receiveShadow = true;
@@ -1036,7 +1139,7 @@ function initWorld() {
   while (placed < 26 && guard++ < 300) {
     const x = (Math.random() - 0.5) * 90, z = (Math.random() - 0.5) * 58;
     if (distToPath(x, z) < 5.5) continue;
-    if (PAD_POS.some(p => Math.hypot(p[0]-x, p[1]-z) < 3.5)) continue;
+    if (padsPos.some(p => Math.hypot(p[0]-x, p[1]-z) < 3.5)) continue;
     if (Math.hypot(BASE_POS.x-x, BASE_POS.z-z) < 6) continue;
     if (Math.random() < 0.55) {
       const r = new THREE.Mesh(rockGeo, rockMat);
@@ -1077,7 +1180,7 @@ function animate() {
   const dt = rawDt * state.speed;
   const time = clock.elapsedTime;
 
-  if (state.started && !state.over) {
+  if (state.started && !state.over && !state.paused) {
     updateWaves(dt);
     for (const e of enemies) e.update(dt, time);
     for (let i = enemies.length - 1; i >= 0; i--) if (!enemies[i].alive) enemies.splice(i, 1);
@@ -1093,6 +1196,11 @@ function animate() {
     }
     for (const t of towers) t.update(dt);
     updateProjectiles(dt);
+  }
+
+  if (state.started && !state.over) {
+    state.saveTimer -= rawDt;
+    if (state.saveTimer <= 0) { saveGame(); state.saveTimer = 2; }
   }
 
   for (let i = effects.length - 1; i >= 0; i--) {
@@ -1148,6 +1256,11 @@ barBgGeo = new THREE.PlaneGeometry(1, 0.16);
 initWorld();
 buildShop();
 setupInput();
+if (loadGame()) {
+  document.getElementById('playBtn').textContent = `CONTINUE \u2014 WAVE ${state.wave + 1}`;
+  document.getElementById('newBtn').style.display = 'block';
+  showBanner('WELCOME BACK', `Next wave: ${state.wave + 1}`);
+}
 updateWaveBtn();
 animate();
 </script>
