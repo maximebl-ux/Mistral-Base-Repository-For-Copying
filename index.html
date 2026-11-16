@@ -75,8 +75,13 @@
   .legend { display:flex; gap:14px; margin-top:14px; flex-wrap:wrap; justify-content:center; max-width:640px; }
   .legend span { font-size:12px; color:#8fa2b8; }
 </style>
-<script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" } }
+<script>
+  window.addEventListener('load', () => setTimeout(() => {
+    if (!window.__ztdsReady) {
+      const p = document.querySelector('#startOverlay p');
+      if (p) p.innerHTML = '<b style="color:#ff8a8a">The game engine failed to load.</b><br>Check your internet connection and reload the page.';
+    }
+  }, 8000));
 </script>
 </head>
 <body>
@@ -142,7 +147,7 @@
   <button class="big" onclick="location.reload()">TRY AGAIN</button>
 </div>
 <script type="module">
-import * as THREE from 'three';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 
 const PATH_WPS = [
   [-36,-16], [-8,-16], [-8,8], [16,8], [16,-12], [34,-12], [34,16], [-2,16]
@@ -1328,6 +1333,7 @@ if (loadGame()) {
 }
 updateWaveBtn();
 animate();
+window.__ztdsReady = true;
 </script>
 </body>
 </html>
