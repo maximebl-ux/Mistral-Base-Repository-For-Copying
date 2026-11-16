@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Zombie Outbreak: TDS</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { width:100%; height:100%; overflow:hidden; background:#0a0d12; font-family:'Segoe UI',system-ui,sans-serif; color:#e8e8e8; }
-  canvas { display:block; }
+  canvas { display:block; touch-action:none; }
+  button, .card, input { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
   #ui { position:fixed; inset:0; pointer-events:none; z-index:10; }
   #ui > * { pointer-events:auto; }
   #hud { position:absolute; top:10px; left:10px; background:rgba(10,14,20,0.85); border:1px solid #2a3545; border-radius:8px; padding:10px 14px; min-width:230px; }
@@ -55,6 +56,16 @@
   #subBanner { font-size:16px; color:#ff8a8a; }
   #hint { position:absolute; bottom:118px; left:50%; transform:translateX(-50%); background:rgba(10,14,20,0.85); border:1px solid #2a3545; padding:5px 14px; border-radius:6px; font-size:13px; color:#c8d4e4; display:none; }
   #flash { position:fixed; inset:0; background:radial-gradient(ellipse at center, transparent 55%, rgba(200,30,30,0.55) 100%); opacity:0; pointer-events:none; z-index:9; transition:opacity 0.15s; }
+  #keysList { border-top:1px solid #2a3545; margin-top:2px; padding-top:8px; display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:#9fb2c8; }
+  #keysList h4 { margin:0 0 2px; }
+  #keysList div { display:flex; justify-content:space-between; gap:10px; }
+  #keysList b { color:#e8e8e8; }
+  @media (pointer: coarse) {
+    button { padding:11px 16px; font-size:15px; }
+    .card { width:106px; padding:8px 7px; }
+    #settingsPanel { width:256px; }
+    #hud { min-width:210px; }
+  }
   .overlay { position:fixed; inset:0; background:rgba(5,8,12,0.88); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20; text-align:center; }
   .overlay h1 { font-size:42px; color:#8ad0a0; text-shadow:0 0 24px rgba(80,200,120,0.4); margin-bottom:8px; }
   .overlay h2 { font-size:42px; color:#e05a5a; margin-bottom:8px; }
@@ -87,6 +98,18 @@
     <button id="muteBtn">Sound: ON</button>
     <label id="autoLbl"><input type="checkbox" id="autoChk"> Auto-skip waves</label>
     <button id="newBtn">NEW GAME (reset save)</button>
+    <div id="keysList">
+      <h4>KEYS</h4>
+      <div><b>P</b><span>pause / settings</span></div>
+      <div><b>H</b><span>keys (this panel)</span></div>
+      <div><b>Space</b><span>start / skip wave</span></div>
+      <div><b>U</b><span>upgrade selected</span></div>
+      <div><b>S</b><span>sell selected</span></div>
+      <div><b>M</b><span>mute</span></div>
+      <div><b>Q / E</b><span>rotate camera</span></div>
+      <div><b>1&ndash;0</b><span>pick tower</span></div>
+      <div><b>Esc</b><span>deselect</span></div>
+    </div>
   </div>
   <div id="bossWrap"><div id="bossName"></div><div id="bossHpWrap"><div id="bossHp"></div></div></div>
   <div id="panel">
@@ -103,7 +126,7 @@
 <div class="overlay" id="startOverlay">
   <h1>ZOMBIE OUTBREAK: TDS</h1>
   <p>Endless zombie siege. You start with <b style="color:#7fe0a0">$600</b> and a base with <b style="color:#e0a04a">200 HP</b>. Earn cash for every kill, build on the marked pads, and survive as long as you can.</p>
-  <p>Left-click a pad to build &middot; click a tower to upgrade/sell &middot; right-drag to pan &middot; wheel to zoom &middot; Q/E to rotate &middot; keys 1-0 pick towers &middot; P pauses &middot; progress saves automatically.</p>
+  <p>Tap/left-click a pad to build &middot; tap a tower to upgrade/sell &middot; drag or right-drag to pan &middot; pinch or wheel to zoom &middot; twist or Q/E to rotate &middot; keys 1-0 pick towers &middot; P pauses &middot; progress saves automatically.</p>
   <div class="legend">
     <span><b>Guardians</b> stun your towers</span>
     <span><b>Medics</b> heal the horde</span>
@@ -927,18 +950,51 @@ function onClick(e) {
 
 function setupInput() {
   const dom = renderer.domElement;
+  const touches = new Map();
+  let pinchD = 0, pinchA = 0, pinchMid = null;
   dom.addEventListener('contextmenu', e => e.preventDefault());
   dom.addEventListener('pointerdown', e => {
-    pointer.down = true; pointer.button = e.button;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pointer.down = true; pointer.button = e.pointerType === 'touch' ? 0 : e.button;
     pointer.moved = 0; pointer.lastX = e.clientX; pointer.lastY = e.clientY;
+    if (touches.size === 2) {
+      const [a, b] = [...touches.values()];
+      pinchD = Math.hypot(a.x - b.x, a.y - b.y);
+      pinchA = Math.atan2(b.y - a.y, b.x - a.x);
+      pinchMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
   });
   window.addEventListener('pointerup', e => {
-    if (pointer.down && pointer.button === 0 && pointer.moved < 6) onClick(e);
+    if (pointer.down && pointer.button === 0 && pointer.moved < 12 && touches.size === 1) onClick(e);
+    touches.delete(e.pointerId);
     pointer.down = false;
+    if (touches.size < 2) pinchD = 0;
+  });
+  window.addEventListener('pointercancel', e => {
+    touches.delete(e.pointerId);
+    pointer.down = false;
+    if (touches.size < 2) pinchD = 0;
   });
   window.addEventListener('pointermove', e => {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     pointer.moved += Math.abs(e.clientX - pointer.lastX) + Math.abs(e.clientY - pointer.lastY);
-    if (pointer.down && pointer.button === 2) {
+    if (touches.size >= 2) {
+      const [a, b] = [...touches.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      if (pinchD > 0) {
+        camDist = Math.max(24, Math.min(95, camDist - (d - pinchD) * 0.09));
+        camYaw += (ang - pinchA) * 1.1;
+        const fwd = new THREE.Vector3().subVectors(camTarget, camera.position).setY(0).normalize();
+        const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
+        const k = camDist * 0.0016;
+        camTarget.addScaledVector(right, (mid.x - pinchMid.x) * k);
+        camTarget.addScaledVector(fwd, (mid.y - pinchMid.y) * k);
+        clampCam();
+      }
+      pinchD = d; pinchA = ang; pinchMid = mid;
+    } else if (pointer.down && (pointer.button === 2 || (e.pointerType === 'touch' && touches.size === 1))) {
       const fwd = new THREE.Vector3().subVectors(camTarget, camera.position).setY(0).normalize();
       const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
       const k = camDist * 0.0016;
@@ -957,6 +1013,15 @@ function setupInput() {
     if (e.key === 'q' || e.key === 'Q') camYaw += 0.08;
     if (e.key === 'e' || e.key === 'E') camYaw -= 0.08;
     if (e.key === 'Escape') armTower(null);
+    if (e.key === 'p' || e.key === 'P') togglePause();
+    if (e.key === 'h' || e.key === 'H') {
+      const sp = document.getElementById('settingsPanel');
+      sp.style.display = sp.style.display === 'flex' ? 'none' : 'flex';
+    }
+    if (e.key === ' ') { e.preventDefault(); if (state.started && !state.over) { if (state.waveActive) skipWave(); else startWave(); } }
+    if (e.key === 'u' || e.key === 'U') document.getElementById('upBtn').click();
+    if (e.key === 's' || e.key === 'S') document.getElementById('sellBtn').click();
+    if (e.key === 'm' || e.key === 'M') document.getElementById('muteBtn').click();
     const n = parseInt(e.key);
     if (!isNaN(n) && state.started && !state.over) {
       const idx = n === 0 ? 9 : n - 1;
