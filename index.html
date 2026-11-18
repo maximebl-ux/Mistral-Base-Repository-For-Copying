@@ -78,8 +78,10 @@
 <script>
   window.addEventListener('load', () => setTimeout(() => {
     if (!window.__ztdsReady) {
-      const p = document.querySelector('#startOverlay p');
-      if (p) p.innerHTML = '<b style="color:#ff8a8a">The game engine failed to load.</b><br>Check your internet connection and reload the page.';
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;left:10px;right:10px;bottom:10px;z-index:99;background:#2a1414;color:#ff8a8a;border:1px solid #ff8a8a;border-radius:8px;padding:12px;font:14px sans-serif;text-align:center';
+      d.textContent = 'The game engine failed to load. Check your internet connection and reload the page.';
+      document.body.appendChild(d);
     }
   }, 8000));
 </script>
@@ -128,19 +130,6 @@
   <div id="shop"></div>
 </div>
 <div id="flash"></div>
-<div class="overlay" id="startOverlay">
-  <h1>ZOMBIE OUTBREAK: TDS</h1>
-  <p>Endless zombie siege. You start with <b style="color:#7fe0a0">$600</b> and a base with <b style="color:#e0a04a">200 HP</b>. Earn cash for every kill, build on the marked pads, and survive as long as you can.</p>
-  <p>Tap/left-click a pad to build &middot; tap a tower to upgrade/sell &middot; drag or right-drag to pan &middot; pinch or wheel to zoom &middot; twist or Q/E to rotate &middot; keys 1-0 pick towers &middot; P pauses &middot; progress saves automatically.</p>
-  <div class="legend">
-    <span><b>Guardians</b> stun your towers</span>
-    <span><b>Medics</b> heal the horde</span>
-    <span><b>Abomination</b> = miniboss (wave 5+)</span>
-    <span><b>Rot Titan</b> = boss (wave 10+)</span>
-  </div>
-  <button class="big" id="playBtn">PLAY</button>
-  <button class="big" id="newBtn" style="display:none">NEW GAME</button>
-</div>
 <div class="overlay" id="overOverlay" style="display:none">
   <h2>THE BASE HAS FALLEN</h2>
   <p id="overStats"></p>
@@ -1043,12 +1032,9 @@ function setupInput() {
     state.muted = !state.muted;
     document.getElementById('muteBtn').textContent = 'Sound: ' + (state.muted ? 'OFF' : 'ON');
   });
-  document.getElementById('playBtn').addEventListener('click', () => {
-    document.getElementById('startOverlay').style.display = 'none';
-    state.started = true;
-    state.autoTimer = 1.5;
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  });
+  const resumeAudio = () => { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); };
+  window.addEventListener('pointerdown', resumeAudio);
+  window.addEventListener('keydown', resumeAudio);
   window.addEventListener('resize', () => {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
@@ -1327,10 +1313,10 @@ initWorld();
 buildShop();
 setupInput();
 if (loadGame()) {
-  document.getElementById('playBtn').textContent = `CONTINUE \u2014 WAVE ${state.wave + 1}`;
-  document.getElementById('newBtn').style.display = 'block';
   showBanner('WELCOME BACK', `Next wave: ${state.wave + 1}`);
 }
+state.started = true;
+state.autoTimer = 1.5;
 updateWaveBtn();
 animate();
 window.__ztdsReady = true;
