@@ -52,6 +52,11 @@
   #upBtn { background:#3a5a8a; border-color:#5a7ab0; }
   #sellBtn { background:#6a3a3a; border-color:#9a5a5a; }
   #perk { font-size:11px; color:#c8b47a; margin-top:6px; font-style:italic; }
+  #pNext { border-top:1px dashed #33415a; margin-top:8px; padding-top:6px; }
+  #pNext h5 { margin:0 0 3px; color:#7fe0a0; font-size:11.5px; letter-spacing:0.4px; }
+  #pNext .stat { font-size:11.5px; color:#a8d8b0; }
+  #pNext .evoName { color:#ffd27a; font-weight:bold; font-size:12.5px; }
+  #pNext .evoDesc { color:#c8b47a; font-size:11px; margin:2px 0 4px; }
   #banner { position:absolute; top:26%; left:50%; transform:translateX(-50%); font-size:34px; font-weight:bold; color:#ffd27a; text-shadow:0 0 18px rgba(0,0,0,0.9), 0 2px 4px #000; opacity:0; transition:opacity 0.4s; pointer-events:none; text-align:center; }
   #subBanner { font-size:16px; color:#ff8a8a; }
   #hint { position:absolute; bottom:118px; left:50%; transform:translateX(-50%); background:rgba(10,14,20,0.85); border:1px solid #2a3545; padding:5px 14px; border-radius:6px; font-size:13px; color:#c8d4e4; display:none; }
@@ -95,13 +100,13 @@
     <div class="row"><span id="diffLabel"></span></div>
   </div>
   <div id="waveCtrl">
-    <button id="waveBtn">START WAVE 1</button>
+    <button id="waveBtn">START GAME</button>
+    <button id="speedBtn">SPEED 1x</button>
   </div>
   <button id="pauseBtn">⏸ PAUSE</button>
   <div id="settingsPanel">
     <h4>SETTINGS</h4>
     <button id="resumeBtn">▶ RESUME</button>
-    <button id="speedBtn">Speed: 1x</button>
     <button id="muteBtn">Sound: ON</button>
     <label id="autoLbl"><input type="checkbox" id="autoChk"> Auto-skip waves</label>
     <button id="newBtn">NEW GAME (reset save)</button>
@@ -122,6 +127,7 @@
   <div id="panel">
     <h3 id="pName"></h3>
     <div id="pStats"></div>
+    <div id="pNext"></div>
     <div id="perk"></div>
     <div class="btns"><button id="upBtn">Upgrade</button><button id="sellBtn">Sell</button></div>
   </div>
@@ -155,16 +161,26 @@ const ENEMY_TYPES = {
 };
 
 const TOWER_TYPES = {
-  scout:     { name:'Scout',     cost:100, dmg:5,    rate:1.6, range:7,  color:0x8ab4c8, proj:'bullet', desc:'Cheap starter rifle. Weak but affordable.' },
-  gunner:    { name:'Gunner',    cost:220, dmg:3.2,  rate:5,   range:8,  color:0xb0a080, proj:'bullet', desc:'Blazing fire rate shreds crowds.' },
-  sniper:    { name:'Sniper',    cost:320, dmg:48,   rate:0.5, range:16, color:0x6c8a5a, proj:'hit',    desc:'Hitscan. +50% damage to bosses.' },
-  cryo:      { name:'Cryo',      cost:260, dmg:4,    rate:1.1, range:7,  color:0x7ad0e0, proj:'orb',    slow:{ mult:0.55, dur:2, splash:2.4 }, desc:'Freezes: slows enemies 45% in a small splash.' },
-  bomber:    { name:'Bomber',    cost:420, dmg:26,   rate:0.7, range:9,  color:0xc07a3a, proj:'shell',  splash:3.2, desc:'Explosive shells, splash radius 3.2.' },
-  toxin:     { name:'Toxin',     cost:350, dmg:5,    rate:1.1, range:8,  color:0x7ac05a, proj:'orb',    poison:{ dps:6, dur:6 }, desc:'Poison: 36 damage over 6s, stacks refresh.' },
-  commander: { name:'Commander', cost:450, dmg:0,    rate:0,   range:7.5,color:0xd8c04a, buff:{ rate:1.35, dmg:1.2 }, desc:'Aura: +35% fire rate, +20% damage nearby.' },
-  tesla:     { name:'Tesla',     cost:520, dmg:18,   rate:1.2, range:8,  color:0x9a6ae0, proj:'chain',  chain:4, desc:'Lightning chains to up to 4 zombies.' },
-  bank:      { name:'Bank',      cost:300, dmg:0,    rate:0,   range:0,  color:0x4ac08a, income:90, desc:'Generates $90 at the end of each wave.' },
-  railgun:   { name:'Railgun',   cost:850, dmg:120,  rate:0.35,range:15, color:0xc84a5a, proj:'pierce', desc:'Pierces every zombie in a line, ignores armor.' }
+  scout:     { name:'Scout',     cost:100, dmg:5,    rate:1.6, range:7,  color:0x8ab4c8, proj:'bullet', desc:'Cheap starter rifle. Weak but affordable.',
+               evo:{ name:'Ranger', crit:0.25, critMult:3, dmg:6, desc:'Critical rounds: 25% chance to deal TRIPLE damage.' } },
+  gunner:    { name:'Gunner',    cost:220, dmg:3.2,  rate:5,   range:8,  color:0xb0a080, proj:'bullet', desc:'Blazing fire rate shreds crowds.',
+               evo:{ name:'Minigun', rate:7.5, dmg:3.6, desc:'Six barrels: fire rate surges to a wall of lead.' } },
+  sniper:    { name:'Sniper',    cost:320, dmg:48,   rate:0.5, range:16, color:0x6c8a5a, proj:'hit',    desc:'Hitscan. +50% damage to bosses.',
+               evo:{ name:'Deadeye', bossBonus:2.5, dmg:62, desc:'Boss bane: +150% damage to bosses and minibosses.' } },
+  cryo:      { name:'Cryo',      cost:260, dmg:4,    rate:1.1, range:7,  color:0x7ad0e0, proj:'orb',    slow:{ mult:0.55, dur:2, splash:2.4 }, desc:'Freezes: slows enemies 45% in a small splash.',
+               evo:{ name:'Absolute Zero', slow:{ mult:0.36, dur:3, splash:3.8 }, desc:'Deep freeze: 64% slow, wider area, longer hold.' } },
+  bomber:    { name:'Bomber',    cost:420, dmg:26,   rate:0.7, range:9,  color:0xc07a3a, proj:'shell',  splash:3.2, desc:'Explosive shells, splash radius 3.2.',
+               evo:{ name:'Cluster Bombs', splash:4.6, dmg:30, desc:'Massive blasts: much wider radius, heavier shells.' } },
+  toxin:     { name:'Toxin',     cost:350, dmg:5,    rate:1.1, range:8,  color:0x7ac05a, proj:'orb',    poison:{ dps:6, dur:6 }, desc:'Poison: 36 damage over 6s, stacks refresh.',
+               evo:{ name:'Plague Bringer', poison:{ dps:14, dur:9 }, desc:'Virulent plague: poison ticks far harder and lasts 9s.' } },
+  commander: { name:'Commander', cost:450, dmg:0,    rate:0,   range:7.5,color:0xd8c04a, buff:{ rate:1.35, dmg:1.2 }, desc:'Aura: +35% fire rate, +20% damage nearby.',
+               evo:{ name:'Warlord', buff:{ rate:1.6, dmg:1.35 }, desc:'Battle aura: +60% fire rate, +35% damage nearby.' } },
+  tesla:     { name:'Tesla',     cost:520, dmg:18,   rate:1.2, range:8,  color:0x9a6ae0, proj:'chain',  chain:4, desc:'Lightning chains to up to 4 zombies.',
+               evo:{ name:'Stormcaller', chain:7, dmg:20, desc:'Storm arcs: lightning chains to 7 zombies.' } },
+  bank:      { name:'Bank',      cost:300, dmg:0,    rate:0,   range:0,  color:0x4ac08a, income:90, desc:'Generates $90 at the end of each wave.',
+               evo:{ name:'Royal Mint', income:260, desc:'Prints money: pays $470 per wave at max level.' } },
+  railgun:   { name:'Railgun',   cost:850, dmg:120,  rate:0.35,range:15, color:0xc84a5a, proj:'pierce', desc:'Pierces every zombie in a line, ignores armor.',
+               evo:{ name:'Doomsday', dmg:190, range:18, desc:'Overcharged rails: devastating damage, longer reach.' } }
 };
 const TOWER_KEYS = Object.keys(TOWER_TYPES);
 const UPGRADE_COSTS = [0.8, 1.4, 2.2];
@@ -525,6 +541,8 @@ class Tower {
   constructor(key, padIndex) {
     this.key = key;
     this.def = TOWER_TYPES[key];
+    this.base = TOWER_TYPES[key];
+    this.glow = 0x000000;
     this.level = 1;
     this.cooldown = 0;
     this.stunTimer = 0;
@@ -547,7 +565,7 @@ class Tower {
   update(dt) {
     if (this.stunTimer > 0) {
       this.stunTimer -= dt;
-      if (this.stunTimer <= 0) this.mesh.traverse(o => { if (o.isMesh && o.material.emissive) o.material.emissive.setHex(0x000000); });
+      if (this.stunTimer <= 0) this.mesh.traverse(o => { if (o.isMesh && o.material.emissive) o.material.emissive.setHex(this.glow); });
       return;
     }
     if (this.def.income || this.def.buff) return;
@@ -561,9 +579,11 @@ class Tower {
     const muzzle = this.mesh.position.clone().setY(1.6);
     const def = this.def;
     if (def.proj === 'hit') {
-      const bonus = (target.def.boss || target.def.miniboss) ? 1.5 : 1;
+      const bonus = (target.def.boss || target.def.miniboss) ? (def.bossBonus || 1.5) : 1;
+      let dmg = this.dmg * bonus;
+      if (def.crit && Math.random() < def.crit) dmg *= def.critMult;
       beam(muzzle, target.pos.clone().setY(1.2), 0xfff0b0, 0.05, 0.1);
-      target.damage(this.dmg * bonus);
+      target.damage(dmg);
       sfx.shoot();
     } else if (def.proj === 'chain') {
       let cur = target, dmg = this.dmg;
@@ -608,7 +628,7 @@ class Tower {
         mesh: m, tower: this, target,
         pos, dest: target.pos.clone().setY(0.9),
         speed: def.proj === 'shell' ? 16 : 28,
-        dmg: this.dmg, def
+        dmg: (def.crit && Math.random() < def.crit) ? this.dmg * def.critMult : this.dmg, def
       });
       sfx.shoot();
     }
@@ -829,10 +849,56 @@ function selectTower(t) {
   } else ring.visible = false;
 }
 
+function statsAt(t, level) {
+  let d = t.base;
+  if (level >= 4 && d.evo) d = Object.assign({ isEvo: true }, d, d.evo);
+  return {
+    d,
+    dmg: d.dmg * Math.pow(1.55, level - 1),
+    rate: d.rate * Math.pow(1.12, level - 1),
+    range: d.range * Math.pow(1.08, level - 1),
+    income: d.income ? d.income + 70 * (level - 1) : 0,
+    slow: d.slow ? Math.round((1 - d.slow.mult * Math.pow(0.85, level - 1)) * 100) : 0,
+    buff: d.buff ? Math.round((d.buff.rate * Math.pow(1.1, level - 1) - 1) * 100) : 0
+  };
+}
+
+function buildPreview(t) {
+  if (t.level >= 4) {
+    return t.def.isEvo ? `<h5>\u2605 EVOLVED</h5><div>${t.base.evo.desc}</div>` : '<h5>MAX LEVEL</h5>';
+  }
+  const nx = statsAt(t, t.level + 1);
+  const row = (label, text) => `<div class="stat"><span>${label}</span><b>${text} <span style="color:#7fe0a0">\u25b2</span></b></div>`;
+  let h = '';
+  if (t.level === 3 && t.base.evo) h += `<h5>\u2605 EVOLUTION READY</h5><div class="evoName">${t.base.evo.name}</div><div class="evoDesc">${t.base.evo.desc}</div>`;
+  else h += `<h5>NEXT: LEVEL ${t.level + 1}</h5>`;
+  if (nx.d.dmg) h += row('Damage', nx.dmg.toFixed(1));
+  if (nx.d.rate) h += row('Fire rate', nx.rate.toFixed(2) + '/s');
+  if (nx.d.income) h += row('Income/wave', '$' + nx.income);
+  if (nx.d.slow) h += row('Slow', nx.slow + '%');
+  if (nx.d.buff) h += row('Aura', '+' + nx.buff + '% rate');
+  if (nx.d.range) h += row('Range', nx.range.toFixed(1));
+  return h;
+}
+
+function evolveDef(t) {
+  t.def = Object.assign({ isEvo: true }, t.base, t.base.evo);
+  t.glow = 0x3d2a08;
+  t.mesh.traverse(o => { if (o.isMesh && o.material.emissive) o.material.emissive.setHex(t.glow); });
+  const head = t.mesh.userData.head;
+  if (head) head.scale.setScalar(1.15);
+}
+
+function applyEvolution(t) {
+  evolveDef(t);
+  showBanner(`${t.def.name.toUpperCase()} \u2605 EVOLVED`, t.base.evo.desc);
+  sfx.boss();
+}
+
 function refreshPanel() {
   const t = selectedTower;
   if (!t) return;
-  document.getElementById('pName').textContent = `${t.def.name} Lv.${t.level}`;
+  document.getElementById('pName').textContent = `${t.def.name}${t.def.isEvo ? ' \u2605' : ''} Lv.${t.level}`;
   const dps = t.def.rate > 0 ? (t.dmg * t.rate).toFixed(1) : '\u2014';
   let extra = '';
   if (t.def.income) extra = `<div class="stat"><span>Income/wave</span><b>$${t.def.income + 70 * (t.level - 1)}</b></div>`;
@@ -843,6 +909,7 @@ function refreshPanel() {
     (t.def.rate ? `<div class="stat"><span>Fire rate</span><b>${t.rate.toFixed(2)}/s</b></div><div class="stat"><span>DPS</span><b>${dps}</b></div>` : '') +
     (t.def.range ? `<div class="stat"><span>Range</span><b>${t.range.toFixed(1)}</b></div>` : '') +
     extra;
+  document.getElementById('pNext').innerHTML = buildPreview(t);
   document.getElementById('perk').textContent = t.def.desc;
   const up = document.getElementById('upBtn');
   const cost = t.upgradeCost();
@@ -875,11 +942,12 @@ function loadGame() {
     state.muted = !!d.muted;
     document.getElementById('autoChk').checked = !!d.auto;
     document.getElementById('muteBtn').textContent = 'Sound: ' + (state.muted ? 'OFF' : 'ON');
-    document.getElementById('speedBtn').textContent = 'Speed: ' + state.speed + 'x';
+    document.getElementById('speedBtn').textContent = 'SPEED ' + state.speed + 'x';
     for (const td of d.towers || []) {
       if (!TOWER_TYPES[td.key] || !pads[td.padIndex] || pads[td.padIndex].tower) continue;
       const t = new Tower(td.key, td.padIndex);
       t.level = Math.max(1, Math.min(4, td.level || 1));
+      if (t.level >= 4 && !t.def.isEvo && t.base.evo) evolveDef(t);
       t.invested = td.invested || t.def.cost;
       pads[td.padIndex].tower = t;
       towers.push(t);
@@ -1030,7 +1098,7 @@ function setupInput() {
   document.getElementById('speedBtn').addEventListener('click', () => {
     const SPEEDS = [1, 2, 3, 5, 10];
     state.speed = SPEEDS[(SPEEDS.indexOf(state.speed) + 1) % SPEEDS.length] || 1;
-    document.getElementById('speedBtn').textContent = 'Speed: ' + state.speed + 'x';
+    document.getElementById('speedBtn').textContent = 'SPEED ' + state.speed + 'x';
   });
   document.getElementById('muteBtn').addEventListener('click', () => {
     state.muted = !state.muted;
@@ -1054,6 +1122,7 @@ document.getElementById('upBtn').addEventListener('click', () => {
   state.cash -= cost;
   t.invested += cost;
   t.level++;
+  if (t.level >= 4 && !t.def.isEvo && t.base.evo) applyEvolution(t);
   saveGame();
   sfx.cash();
   refreshPanel();
@@ -1316,6 +1385,7 @@ barBgGeo = new THREE.PlaneGeometry(1, 0.16);
 initWorld();
 buildShop();
 setupInput();
+window._ztds = { state, towers, pads, Tower, TOWER_TYPES, selectTower, pickTower, pickPad };
 if (loadGame()) {
   showBanner('WELCOME BACK', 'Place towers \u2014 press START GAME when ready');
 } else {
