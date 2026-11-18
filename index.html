@@ -16,8 +16,7 @@
   #cash { color:#7fe0a0; font-weight:bold; font-size:17px; }
   #waveLabel { font-weight:bold; color:#ffd27a; }
   #diffLabel { color:#ff8a8a; font-size:12px; }
-  #hpWrap { background:#1a2230; border-radius:4px; height:14px; width:170px; overflow:hidden; border:1px solid #33415a; }
-  #hpBar { height:100%; background:linear-gradient(90deg,#e04a4a,#e0a04a); width:100%; transition:width 0.2s; }
+
   #zedsLeft { color:#9fb2c8; font-size:12px; }
   #waveCtrl { position:absolute; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:center; }
   button { background:#223048; color:#e8e8e8; border:1px solid #3a4c68; border-radius:6px; padding:8px 16px; font-size:14px; cursor:pointer; font-weight:bold; }
@@ -95,8 +94,7 @@
 <div id="ui">
   <div id="hud">
     <div class="row"><span id="cash">$600</span><span id="waveLabel">Wave 0</span></div>
-    <div class="row"><span>Base HP</span><div id="hpWrap"><div id="hpBar"></div></div></div>
-    <div class="row"><span id="hpText">200 / 200</span><span id="zedsLeft"></span></div>
+    <div class="row"><span id="zedsLeft"></span></div>
     <div class="row"><span id="diffLabel"></span></div>
   </div>
   <div id="waveCtrl">
@@ -204,6 +202,7 @@ let camYaw = 0.35, camDist = 58;
 const camTarget = new THREE.Vector3(0, 0, 2);
 let CAM_PITCH = 0.95;
 let baseCrystal = null, baseFlash = 0;
+let baseHpDrawn = -1, baseHpCanvas, baseHpTex, baseHpSprite;
 let hoverPad = -1;
 
 const audioCtx = window.AudioContext ? new AudioContext() : null;
@@ -1111,6 +1110,12 @@ function setupInput() {
     }
   });
   document.getElementById('waveBtn').addEventListener('click', () => { if (state.waveActive) skipWave(); else startWave(); });
+  document.getElementById('pauseBtn').addEventListener('click', togglePause);
+  document.getElementById('resumeBtn').addEventListener('click', togglePause);
+  document.getElementById('newBtn').addEventListener('click', () => {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    location.reload();
+  });
   document.getElementById('speedBtn').addEventListener('click', () => {
     const SPEEDS = [1, 2, 3, 5, 10];
     state.speed = SPEEDS[(SPEEDS.indexOf(state.speed) + 1) % SPEEDS.length] || 1;
@@ -1158,14 +1163,34 @@ document.getElementById('sellBtn').addEventListener('click', () => {
 });
 
 let uiTick = 0;
+function drawBaseHp(hp, max) {
+  const c = baseHpCanvas.getContext('2d');
+  c.clearRect(0, 0, 256, 80);
+  const pct = Math.max(0, hp / max);
+  c.font = 'bold 21px Segoe UI, sans-serif';
+  c.textAlign = 'center';
+  c.lineWidth = 4; c.strokeStyle = '#000';
+  c.strokeText('BASE ' + hp + ' / ' + max, 128, 26);
+  c.fillStyle = '#fff';
+  c.fillText('BASE ' + hp + ' / ' + max, 128, 26);
+  c.fillStyle = 'rgba(0,0,0,0.7)';
+  c.fillRect(20, 40, 216, 24);
+  const grad = c.createLinearGradient(20, 0, 236, 0);
+  grad.addColorStop(0, '#e04a4a'); grad.addColorStop(1, '#e0a04a');
+  c.fillStyle = grad;
+  c.fillRect(23, 43, 210 * pct, 18);
+  c.lineWidth = 2; c.strokeStyle = '#000';
+  c.strokeRect(20, 40, 216, 24);
+  baseHpTex.needsUpdate = true;
+}
+
 function updateUI(dt) {
   uiTick -= dt;
   if (uiTick > 0) return;
   uiTick = 0.15;
   document.getElementById('cash').textContent = '$' + state.cash;
   const hp = Math.max(0, Math.round(state.baseHp));
-  document.getElementById('hpBar').style.width = (hp / state.baseMax * 100) + '%';
-  document.getElementById('hpText').textContent = `${hp} / ${state.baseMax}`;
+  if (baseHpSprite && hp !== baseHpDrawn) { baseHpDrawn = hp; drawBaseHp(hp, state.baseMax); }
   document.getElementById('waveLabel').textContent = 'Wave ' + state.wave;
   document.getElementById('zedsLeft').textContent = state.waveActive ? `Zeds: ${enemies.length + spawnQueue.length}` : '';
   const m = hpMul(Math.max(1, state.wave));
@@ -1273,6 +1298,14 @@ function initWorld() {
     new THREE.MeshStandardMaterial({ color: 0x6ae0a0, emissive: 0x2a8a5a, emissiveIntensity: 1.4 }));
   baseCrystal.position.y = 5.2;
   base.add(baseCrystal);
+  baseHpCanvas = document.createElement('canvas');
+  baseHpCanvas.width = 256; baseHpCanvas.height = 80;
+  baseHpTex = new THREE.CanvasTexture(baseHpCanvas);
+  baseHpSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: baseHpTex, transparent: true, depthTest: false }));
+  baseHpSprite.scale.set(6, 1.9, 1);
+  baseHpSprite.position.y = 7.1;
+  baseHpSprite.renderOrder = 5;
+  base.add(baseHpSprite);
   base.position.copy(BASE_POS).setY(0);
   scene.add(base);
 
@@ -1401,7 +1434,7 @@ barBgGeo = new THREE.PlaneGeometry(1, 0.16);
 initWorld();
 buildShop();
 setupInput();
-window._ztds = { state, towers, pads, Tower, TOWER_TYPES, selectTower, pickTower, pickPad, camera, camTarget };
+window._ztds = { state, towers, pads, Tower, TOWER_TYPES, selectTower, pickTower, pickPad, camera, camTarget, scene };
 if (loadGame()) {
   showBanner('WELCOME BACK', 'Place towers \u2014 press START GAME when ready');
 } else {
