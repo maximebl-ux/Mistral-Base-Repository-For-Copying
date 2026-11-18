@@ -696,6 +696,7 @@ function buildWave(w) {
 
 function startWave() {
   if (state.waveActive || state.over) return;
+  state.started = true;
   state.wave++;
   state.waveActive = true;
   state.waveTime = 0; state.skipReady = false; state.skipping = false;
@@ -780,6 +781,9 @@ function updateWaveBtn() {
     if (state.skipping) { btn.disabled = true; btn.textContent = `WAVE ${state.wave} \u2014 RUSHING`; }
     else if (state.skipReady) { btn.disabled = false; btn.textContent = `SKIP WAVE ${state.wave}`; }
     else { btn.disabled = true; btn.textContent = `WAVE ${state.wave} IN PROGRESS`; }
+  } else if (!state.started) {
+    btn.disabled = false;
+    btn.textContent = 'START GAME';
   } else {
     btn.disabled = false;
     btn.textContent = `START WAVE ${state.wave + 1}`;
@@ -885,7 +889,7 @@ function loadGame() {
 }
 
 function togglePause() {
-  if (!state.started || state.over) return;
+  if (state.over) return;
   state.paused = !state.paused;
   document.getElementById('pauseBtn').textContent = state.paused ? '\u25b6 RESUME' : '\u23f8 PAUSE';
   document.getElementById('settingsPanel').style.display = state.paused ? 'flex' : 'none';
@@ -918,7 +922,7 @@ function pickTower() {
 }
 
 function onClick(e) {
-  if (!state.started || state.over) return;
+  if (state.over) return;
   const padIdx = pickPad();
   if (armedKey && padIdx >= 0 && !pads[padIdx].tower) {
     const def = TOWER_TYPES[armedKey];
@@ -1017,7 +1021,7 @@ function setupInput() {
     if (e.key === 's' || e.key === 'S') document.getElementById('sellBtn').click();
     if (e.key === 'm' || e.key === 'M') document.getElementById('muteBtn').click();
     const n = parseInt(e.key);
-    if (!isNaN(n) && state.started && !state.over) {
+    if (!isNaN(n) && !state.over) {
       const idx = n === 0 ? 9 : n - 1;
       if (idx < TOWER_KEYS.length) armTower(armedKey === TOWER_KEYS[idx] ? null : TOWER_KEYS[idx]);
     }
@@ -1313,10 +1317,10 @@ initWorld();
 buildShop();
 setupInput();
 if (loadGame()) {
-  showBanner('WELCOME BACK', `Next wave: ${state.wave + 1}`);
+  showBanner('WELCOME BACK', 'Place towers \u2014 press START GAME when ready');
+} else {
+  showBanner('PLACE YOUR TOWERS', 'Press START GAME when ready');
 }
-state.started = true;
-state.autoTimer = 1.5;
 updateWaveBtn();
 animate();
 window.__ztdsReady = true;
