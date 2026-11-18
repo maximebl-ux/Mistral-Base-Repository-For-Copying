@@ -190,7 +190,7 @@ const state = {
   cash: 600, baseHp: 200, baseMax: 200,
   wave: 0, waveActive: false, speed: 1, muted: false,
   started: false, over: false, paused: false,
-  autoTimer: 0, waveTime: 0, skipReady: false, skipping: false, wasSkipped: false, saveTimer: 2
+  autoTimer: 0, waveTime: 0, skipReady: false, skipping: false, saveTimer: 2
 };
 const enemies = [], towers = [], projectiles = [], effects = [], pads = [], beams = [];
 let spawnQueue = [], spawnTimer = 0;
@@ -721,7 +721,7 @@ function startWave() {
   state.started = true;
   state.wave++;
   state.waveActive = true;
-  state.waveTime = 0; state.skipReady = false; state.skipping = false; state.wasSkipped = false;
+  state.waveTime = 0; state.skipReady = false; state.skipping = false;
   spawnQueue = buildWave(state.wave);
   spawnTimer = 0.5;
   const hasBoss = spawnQueue.includes('titan');
@@ -740,22 +740,15 @@ function endWave() {
   showBanner(`WAVE ${state.wave} CLEARED`, `+$${bonus} bonus${income ? ` + $${income} bank income` : ''}`);
   sfx.cash();
   updateWaveBtn();
-  state.autoTimer = state.wasSkipped ? 5 : 1.5;
+  state.autoTimer = 1.5;
   saveGame();
 }
 
-function updateWaves(dt) {
+function updateWaves(dt, rawDt) {
   if (state.waveActive) {
     state.waveTime += dt;
     if (!state.skipReady && state.waveTime >= 4 / state.speed) { state.skipReady = true; updateWaveBtn(); }
-    if (state.skipping && spawnQueue.length) {
-      spawnTimer -= dt;
-      if (spawnTimer <= 0) {
-        const key = spawnQueue.shift();
-        enemies.push(new Enemy(key, hpMul(state.wave), 1 + Math.min(0.5, state.wave * 0.012), 1 + (state.wave - 1) * 0.03));
-        spawnTimer = 0.08;
-      }
-    } else if (spawnQueue.length) {
+    if (spawnQueue.length) {
       spawnTimer -= dt;
       if (spawnTimer <= 0) {
         const key = spawnQueue.shift();
@@ -766,22 +759,36 @@ function updateWaves(dt) {
     if (document.getElementById('autoChk').checked && state.skipReady) skipWave();
     if (!spawnQueue.length && enemies.length === 0) endWave();
   } else if (state.autoTimer > 0) {
-    state.autoTimer -= dt;
+    state.autoTimer -= rawDt;
     const secs = Math.max(1, Math.ceil(state.autoTimer));
     const btn = document.getElementById('waveBtn');
     const label = `NEXT WAVE IN ${secs}s`;
     if (btn.textContent !== label) btn.textContent = label;
     if (!btn.disabled) btn.disabled = true;
-    if (state.autoTimer <= 0) startWave();
+    const bn = document.getElementById('banner');
+    if (bn.dataset.cd !== label) {
+      bn.dataset.cd = label;
+      bn.innerHTML = `NEXT HORDE IN ${secs}...`;
+    }
+    bn.style.opacity = 1;
+    clearTimeout(bn._t);
+    if (state.autoTimer <= 0) { bn.dataset.cd = ''; startWave(); }
   }
 }
 
 function skipWave() {
-  if (!state.waveActive || !state.skipReady || state.skipping) return;
-  state.skipping = true;
-  state.wasSkipped = true;
-  spawnTimer = 0;
-  showBanner(`WAVE ${state.wave} SKIPPED`, 'The horde rushes in!');
+  if (!state.waveActive || !state.skipReady) return;
+  state.waveActive = false;
+  spawnQueue = [];
+  const bonus = 60 + state.wave * 12;
+  let income = 0;
+  for (const t of towers) if (t.def.income) income += t.def.income + 70 * (t.level - 1);
+  addCash(bonus + income);
+  sfx.cash();
+  state.autoTimer = 5;
+  showBanner(`WAVE ${state.wave} SKIPPED`, `+$${bonus} bonus \u2014 next horde in 5s!`);
+  updateWaveBtn();
+  saveGame();
 }
 
 function addCash(v) { state.cash += Math.round(v); }
@@ -806,8 +813,7 @@ function updateWaveBtn() {
   const btn = document.getElementById('waveBtn');
   if (state.over) { btn.disabled = true; btn.textContent = `WAVE ${state.wave}`; return; }
   if (state.waveActive) {
-    if (state.skipping) { btn.disabled = true; btn.textContent = `WAVE ${state.wave} \u2014 RUSHING`; }
-    else if (state.skipReady) { btn.disabled = false; btn.textContent = `SKIP WAVE ${state.wave}`; }
+    if (state.skipReady) { btn.disabled = false; btn.textContent = `SKIP WAVE ${state.wave}`; }
     else { btn.disabled = true; btn.textContent = `WAVE ${state.wave} IN PROGRESS`; }
   } else if (!state.started) {
     btn.disabled = false;
@@ -1365,7 +1371,7 @@ function animate() {
   const time = clock.elapsedTime;
 
   if (state.started && !state.over && !state.paused) {
-    updateWaves(dt);
+    updateWaves(dt, rawDt);
     for (const e of enemies) e.update(dt, time);
     for (let i = enemies.length - 1; i >= 0; i--) if (!enemies[i].alive) enemies.splice(i, 1);
     for (const t of towers) {
