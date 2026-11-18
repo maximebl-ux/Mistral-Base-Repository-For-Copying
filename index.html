@@ -190,7 +190,7 @@ const state = {
   cash: 600, baseHp: 200, baseMax: 200,
   wave: 0, waveActive: false, speed: 1, muted: false,
   started: false, over: false, paused: false,
-  autoTimer: 0, waveTime: 0, skipReady: false, skipping: false, saveTimer: 2
+  autoTimer: 0, waveTime: 0, skipReady: false, skipping: false, wasSkipped: false, saveTimer: 2
 };
 const enemies = [], towers = [], projectiles = [], effects = [], pads = [], beams = [];
 let spawnQueue = [], spawnTimer = 0;
@@ -721,7 +721,7 @@ function startWave() {
   state.started = true;
   state.wave++;
   state.waveActive = true;
-  state.waveTime = 0; state.skipReady = false; state.skipping = false;
+  state.waveTime = 0; state.skipReady = false; state.skipping = false; state.wasSkipped = false;
   spawnQueue = buildWave(state.wave);
   spawnTimer = 0.5;
   const hasBoss = spawnQueue.includes('titan');
@@ -740,7 +740,7 @@ function endWave() {
   showBanner(`WAVE ${state.wave} CLEARED`, `+$${bonus} bonus${income ? ` + $${income} bank income` : ''}`);
   sfx.cash();
   updateWaveBtn();
-  state.autoTimer = 1.5;
+  state.autoTimer = state.wasSkipped ? 5 : 1.5;
   saveGame();
 }
 
@@ -767,6 +767,11 @@ function updateWaves(dt) {
     if (!spawnQueue.length && enemies.length === 0) endWave();
   } else if (state.autoTimer > 0) {
     state.autoTimer -= dt;
+    const secs = Math.max(1, Math.ceil(state.autoTimer));
+    const btn = document.getElementById('waveBtn');
+    const label = `NEXT WAVE IN ${secs}s`;
+    if (btn.textContent !== label) btn.textContent = label;
+    if (!btn.disabled) btn.disabled = true;
     if (state.autoTimer <= 0) startWave();
   }
 }
@@ -774,6 +779,7 @@ function updateWaves(dt) {
 function skipWave() {
   if (!state.waveActive || !state.skipReady || state.skipping) return;
   state.skipping = true;
+  state.wasSkipped = true;
   spawnTimer = 0;
   showBanner(`WAVE ${state.wave} SKIPPED`, 'The horde rushes in!');
 }
