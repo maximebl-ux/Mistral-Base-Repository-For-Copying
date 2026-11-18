@@ -1072,7 +1072,7 @@ function setupInput() {
         camTarget.addScaledVector(fwd, (e.clientY - pointer.lastY) * k);
         clampCam();
       } else {
-        camYaw += (e.clientX - pointer.lastX) * 0.006;
+        camYaw -= (e.clientX - pointer.lastX) * 0.006;
         CAM_PITCH = Math.max(0.35, Math.min(1.35, CAM_PITCH + (e.clientY - pointer.lastY) * 0.005));
       }
     } else if (pointer.down && e.pointerType === 'touch' && touches.size === 1) {
