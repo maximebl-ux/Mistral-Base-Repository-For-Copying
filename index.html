@@ -190,7 +190,7 @@ const enemies = [], towers = [], projectiles = [], effects = [], pads = [], beam
 let spawnQueue = [], spawnTimer = 0;
 let armedKey = null, selectedTower = null;
 
-let scene, camera, renderer, clock, raycaster;
+let scene, camera, renderer, clock, raycaster, ground;
 const mouseNDC = new THREE.Vector2();
 let camYaw = 0.35, camDist = 58;
 const camTarget = new THREE.Vector3(0, 0, 2);
