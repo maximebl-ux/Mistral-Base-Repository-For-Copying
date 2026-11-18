@@ -759,7 +759,7 @@ function updateWaves(dt, rawDt) {
     if (document.getElementById('autoChk').checked && state.skipReady) skipWave();
     if (!spawnQueue.length && enemies.length === 0) endWave();
   } else if (state.autoTimer > 0) {
-    state.autoTimer -= rawDt;
+    state.autoTimer -= dt;
     const secs = Math.max(1, Math.ceil(state.autoTimer));
     const btn = document.getElementById('waveBtn');
     const label = `NEXT WAVE IN ${secs}s`;
