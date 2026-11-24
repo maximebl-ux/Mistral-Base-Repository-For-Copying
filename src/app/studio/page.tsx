@@ -32,7 +32,7 @@ export default function StudioPage() {
       <div className="page-pad pt-28">
         <EmptyState
           title="Creator studio is not enabled for viewer accounts"
-          body="Creator tools belong to creator and admin accounts in this prototype. Sign in with creator@lumen.test to explore them."
+          body="Creator tools belong to creator and admin accounts in this prototype. Sign in with a creator account to explore them."
           action={
             <Link href="/" className="text-sm text-brand hover:underline">
               Back to home

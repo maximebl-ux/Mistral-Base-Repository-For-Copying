@@ -85,17 +85,6 @@ export function AuthForm({ mode }: AuthFormProps) {
         </Button>
       </form>
 
-      {mode === "login" ? (
-        <div className="mt-8 rounded-lg border border-hairline bg-surface-1 p-4 text-sm">
-          <p className="font-medium text-ink">Demo accounts</p>
-          <ul className="mt-2 space-y-1 font-mono text-xs text-ink-dim">
-            <li>viewer@lumen.test · viewer123</li>
-            <li>creator@lumen.test · creator123</li>
-            <li>admin@lumen.test · admin123</li>
-          </ul>
-        </div>
-      ) : null}
-
       <p className="mt-6 text-xs text-ink-faint">
         Prototype notice: accounts are stored in this browser only (localStorage). No server or
         production authentication is involved.

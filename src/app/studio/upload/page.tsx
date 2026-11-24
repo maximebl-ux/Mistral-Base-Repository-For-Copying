@@ -34,7 +34,7 @@ export default function UploadMockPage() {
       <div className="page-pad pt-28">
         <EmptyState
           title="Creator tools need a creator account"
-          body="Sign in with creator@lumen.test to try the upload workflow."
+          body="Sign in with a creator account to try the upload workflow."
           action={<Link href="/" className="text-sm text-brand hover:underline">Back to home</Link>}
         />
       </div>

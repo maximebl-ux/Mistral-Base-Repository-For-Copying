@@ -16,11 +16,17 @@ Production build: `npm run build && npm start`
 
 ## Demo accounts (mock auth, stored in browser localStorage)
 
-| Account            | Password     | Role    | Unlocks                    |
-| ------------------ | ------------ | ------- | -------------------------- |
-| viewer@lumen.test  | `viewer123`  | viewer  | library, watchlist, likes  |
-| creator@lumen.test | `creator123` | creator | + Creator Studio, captions |
-| admin@lumen.test   | `admin123`   | admin   | + Admin console            |
+Three role accounts (viewer, creator, admin) are seeded in `src/stores/seed.ts` so the
+gated areas can be exercised. Their logins are intentionally **not** documented here or
+shown in the UI: the login page lists no credentials, and the role-gated pages no longer
+name a demo email. Request the demo logins from the project owner, or register your own
+viewer account at `/register` (registration only creates viewer accounts).
+
+| Role    | Unlocks                    |
+| ------- | -------------------------- |
+| viewer  | library, watchlist, likes  |
+| creator | + Creator Studio, captions |
+| admin   | + Admin console            |
 
 ## What's here
 

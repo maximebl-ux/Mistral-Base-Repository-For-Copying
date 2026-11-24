@@ -104,7 +104,7 @@ export default function CaptionEditorPage({ params }: { params: Promise<{ id: st
       <div className="page-pad pt-28">
         <EmptyState
           title="Creator tools need a creator account"
-          body="Sign in with creator@lumen.test to edit captions."
+          body="Sign in with a creator account to edit captions."
           action={<Link href="/" className="text-sm text-brand hover:underline">Back to home</Link>}
         />
       </div>

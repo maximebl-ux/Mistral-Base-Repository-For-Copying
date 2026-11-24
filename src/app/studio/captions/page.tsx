@@ -27,7 +27,7 @@ export default function CaptionsPage() {
       <div className="page-pad pt-28">
         <EmptyState
           title="Creator tools need a creator account"
-          body="Sign in with creator@lumen.test to manage captions."
+          body="Sign in with a creator account to manage captions."
           action={<Link href="/" className="text-sm text-brand hover:underline">Back to home</Link>}
         />
       </div>

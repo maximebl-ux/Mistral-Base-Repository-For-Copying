@@ -30,7 +30,7 @@ export default function AdminPage() {
       <div className="page-pad pt-28">
         <EmptyState
           title="Administrator access required"
-          body="This console is restricted to the admin role. Sign in with admin@lumen.test to explore it."
+          body="This console is restricted to the admin role. Sign in with an admin account to explore it."
           action={
             <Link href="/" className="text-sm text-brand hover:underline">
               Back to home
