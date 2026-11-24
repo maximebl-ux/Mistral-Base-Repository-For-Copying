@@ -1,25 +1,11 @@
 {
-  "name": "streamflix",
-  "version": "0.1.0",
+  "name": "shardfall",
+  "version": "1.0.0",
   "private": true,
+  "description": "SHARDFALL - action survival roguelite (HTML5 canvas, no dependencies)",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "python3 -m http.server 8000",
+    "test": "node tests/sim.js standard && node tests/sim.js systems && node tests/sim.js weapons && node tests/sim.js armours && node tests/sim.js enemies && node tests/sim.js consumables"
   },
-  "dependencies": {
-    "next": "^15.5.29",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.5",
-    "@types/node": "^26.6.6",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "postcss": "^8.5.33",
-    "tailwindcss": "^4.3.5",
-    "typescript": "^5.9.3"
-  }
+  "devDependencies": {}
 }

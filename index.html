@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0f16" />
+<meta name="description" content="SHARDFALL - a fast action survival roguelite: 14 weapons, 5 characters, 4 bosses, endless levels." />
+<title>SHARDFALL - Action Survival Roguelite</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="Game arena"></canvas>
+
+  <div id="hud" class="hud hidden">
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="level-chip">
+          <span id="hud-level">LEVEL 1</span>
+          <span id="hud-biome" class="muted">Ashen Foundry</span>
+        </div>
+        <div class="bar hp">
+          <div id="hud-hp-fill" class="fill"></div>
+          <span id="hud-hp-text" class="bar-text">100 / 100</span>
+        </div>
+        <div class="bar shield hidden" id="hud-shield-wrap">
+          <div id="hud-shield-fill" class="fill"></div>
+        </div>
+        <div id="hud-status" class="status-row"></div>
+      </div>
+      <div class="hud-center">
+        <div id="boss-bar" class="boss-bar hidden">
+          <div class="boss-top">
+            <span id="boss-name">BOSS</span>
+            <span id="boss-phase" class="boss-phase"></span>
+          </div>
+          <div class="boss-track"><div id="boss-fill"></div></div>
+        </div>
+      </div>
+      <div class="hud-right">
+        <button id="btn-pause" class="icon-btn" title="Pause (Esc)" aria-label="Pause">&#10073;&#10073;</button>
+        <div class="gold-chip"><span class="coin"></span><span id="hud-gold">0</span></div>
+        <div class="weapon-card" id="hud-weapon">
+          <div class="weapon-icon" id="hud-weapon-icon">&#9876;</div>
+          <div class="weapon-meta">
+            <div class="weapon-name" id="hud-weapon-name">Iron Cleaver</div>
+            <div class="weapon-sub" id="hud-weapon-sub">Sword &middot; Lv 1</div>
+            <div class="pips" id="hud-weapon-pips"></div>
+          </div>
+        </div>
+        <div class="ability-row">
+          <button id="btn-ability" class="ability-btn" title="Special ability (E)">
+            <span class="ability-icon" id="ability-icon">&#10022;</span>
+            <span class="ability-cd" id="ability-cd"></span>
+            <span class="ability-name" id="ability-name">Slam</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div id="consumables" class="consumables"></div>
+      <div id="hud-hint" class="hud-hint"></div>
+    </div>
+
+    <div id="touch-ui" class="touch-ui hidden">
+      <div id="joystick" class="joystick"><div id="joystick-knob" class="joystick-knob"></div></div>
+      <div class="touch-buttons">
+        <button id="touch-dash" class="touch-btn small" aria-label="Dash">&#8677;</button>
+        <button id="touch-ability" class="touch-btn small" aria-label="Ability">&#10022;</button>
+        <button id="touch-fire" class="touch-btn fire" aria-label="Fire">FIRE</button>
+      </div>
+      <div id="touch-consumables" class="touch-consumables"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-menu">
+    <div class="screen-inner menu-inner">
+      <div class="brand">
+        <div class="brand-mark">&#9670;</div>
+        <h1>SHARDFALL</h1>
+        <p class="tagline">Action Survival Roguelite</p>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn primary big" data-menu="play">PLAY</button>
+        <button class="btn" data-menu="codex">CODEX &amp; UNLOCKS</button>
+        <button class="btn" data-menu="achievements">ACHIEVEMENTS</button>
+        <button class="btn" data-menu="settings">SETTINGS</button>
+        <button class="btn ghost" data-menu="help">HOW TO PLAY</button>
+      </div>
+      <div class="meta-strip" id="menu-meta"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-setup">
+    <div class="screen-inner">
+      <div class="screen-head">
+        <button class="btn ghost small" data-menu="back-menu">&#8592; BACK</button>
+        <h2>CHOOSE YOUR RUNNER</h2>
+        <div class="shard-balance"><span class="shard"></span><span id="setup-shards">0</span></div>
+      </div>
+      <div id="setup-characters" class="char-grid"></div>
+      <div class="setup-lower">
+        <div class="panel">
+          <h3>Difficulty</h3>
+          <div id="setup-challenges" class="pill-row"></div>
+          <h3>Challenge Modifiers <span class="muted small">optional, more shards</span></h3>
+          <div id="setup-modifiers" class="mod-grid"></div>
+        </div>
+        <div class="panel run-summary" id="setup-summary"></div>
+      </div>
+      <div class="setup-foot">
+        <button class="btn primary big" id="btn-start-run">DESCEND</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-reward">
+    <div class="screen-inner">
+      <div class="screen-head centered">
+        <h2 id="reward-title">LEVEL CLEARED</h2>
+        <p class="muted" id="reward-sub">Choose one reward</p>
+      </div>
+      <div id="reward-cards" class="card-row"></div>
+      <div class="screen-foot centered">
+        <button class="btn ghost" id="btn-skip-reward">Skip &mdash; take gold instead</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-hub">
+    <div class="screen-inner wide">
+      <div class="screen-head">
+        <div>
+          <h2 id="hub-title">LOADOUT</h2>
+          <p class="muted small" id="hub-sub">Between levels</p>
+        </div>
+        <div class="hub-stats" id="hub-stats"></div>
+      </div>
+      <div class="hub-grid">
+        <div class="panel">
+          <h3>Weapons</h3>
+          <div id="hub-weapons" class="item-list"></div>
+          <h3>Armour</h3>
+          <div id="hub-armours" class="item-list"></div>
+        </div>
+        <div class="panel">
+          <h3>Build</h3>
+          <div id="hub-build" class="build-list"></div>
+        </div>
+        <div class="panel">
+          <h3>Market</h3>
+          <div id="hub-shop" class="shop-list"></div>
+          <div class="shop-actions">
+            <button class="btn small" id="btn-buy-heal">Heal 50%</button>
+            <button class="btn small" id="btn-buy-upgrade">Upgrade Weapon</button>
+          </div>
+        </div>
+      </div>
+      <div class="screen-foot">
+        <div class="muted small" id="hub-next"></div>
+        <button class="btn primary" id="btn-descend">DESCEND</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-event">
+    <div class="screen-inner narrow">
+      <div class="event-card">
+        <div class="event-icon" id="event-icon">&#9670;</div>
+        <h2 id="event-name">Event</h2>
+        <p id="event-text" class="event-text"></p>
+        <div id="event-choices" class="event-choices"></div>
+        <div id="event-result" class="event-result hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-pause">
+    <div class="screen-inner narrow">
+      <h2 class="centered">PAUSED</h2>
+      <div id="pause-stats" class="stat-grid"></div>
+      <div class="menu-buttons">
+        <button class="btn primary" id="btn-resume">RESUME</button>
+        <button class="btn" id="btn-pause-settings">SETTINGS</button>
+        <button class="btn ghost" id="btn-abandon">ABANDON RUN</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-settings">
+    <div class="screen-inner narrow">
+      <div class="screen-head">
+        <button class="btn ghost small" id="btn-settings-back">&#8592; BACK</button>
+        <h2>SETTINGS</h2>
+        <span></span>
+      </div>
+      <div id="settings-body" class="settings-body"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-gameover">
+    <div class="screen-inner">
+      <div class="screen-head centered">
+        <h2 class="danger" id="go-title">RUN ENDED</h2>
+        <p class="muted" id="go-sub"></p>
+      </div>
+      <div class="go-grid">
+        <div class="panel" id="go-stats"></div>
+        <div class="panel" id="go-rewards"></div>
+      </div>
+      <div class="menu-buttons row">
+        <button class="btn primary" id="btn-retry">RUN AGAIN</button>
+        <button class="btn" id="btn-go-codex">CODEX</button>
+        <button class="btn ghost" id="btn-go-menu">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-codex">
+    <div class="screen-inner wide">
+      <div class="screen-head">
+        <button class="btn ghost small" data-menu="back-menu">&#8592; BACK</button>
+        <h2>CODEX</h2>
+        <div class="shard-balance"><span class="shard"></span><span id="codex-shards">0</span></div>
+      </div>
+      <div class="tab-row" id="codex-tabs"></div>
+      <div id="codex-body" class="codex-body"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-achievements">
+    <div class="screen-inner">
+      <div class="screen-head">
+        <button class="btn ghost small" data-menu="back-menu">&#8592; BACK</button>
+        <h2>ACHIEVEMENTS</h2>
+        <span></span>
+      </div>
+      <div id="achievements-body" class="achievement-grid"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-help">
+    <div class="screen-inner">
+      <div class="screen-head">
+        <button class="btn ghost small" data-menu="back-menu">&#8592; BACK</button>
+        <h2>HOW TO PLAY</h2>
+        <span></span>
+      </div>
+      <div id="help-body" class="help-body"></div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <div id="fade" class="fade"></div>
+</div>
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/save.js"></script>
+<script src="js/world.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
